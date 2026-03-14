@@ -17,12 +17,12 @@ import os
 import json
 import asyncio
 import httpx
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
-from typing import Optional
 from azure.communication.sms import SmsClient
-from azure.ai.projects import AIProjectClient
-from azure.identity import DefaultAzureCredential
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ─────────────────────────────────────────────
 # Configuration
@@ -30,22 +30,23 @@ from azure.identity import DefaultAzureCredential
 OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "")
 AZURE_COMMS_CONNECTION_STRING = os.environ.get("AZURE_COMMS_CONNECTION_STRING", "")
 AZURE_SENDER_PHONE = os.environ.get("AZURE_SENDER_PHONE", "")
-AZURE_AI_PROJECT_CONN = os.environ.get("AZURE_AI_PROJECT_CONN_STRING", "")
 
-# East Africa Monitored Zones
+# Kampala Divisions — Monitored Zones
 MONITORED_ZONES = [
-    {"name": "Kampala", "country": "Uganda", "lat": 0.3476, "lon": 32.5825, "code": "UG-KLA"},
-    {"name": "Nairobi", "country": "Kenya", "lat": -1.2921, "lon": 36.8219, "code": "KE-NBI"},
-    {"name": "Dar es Salaam", "country": "Tanzania", "lat": -6.7924, "lon": 39.2083, "code": "TZ-DAR"},
-    {"name": "Kigali", "country": "Rwanda", "lat": -1.9706, "lon": 30.1044, "code": "RW-KGL"},
-    {"name": "Addis Ababa", "country": "Ethiopia", "lat": 9.0320, "lon": 38.7469, "code": "ET-ADD"},
+    {"name": "Central",  "country": "Uganda", "lat": 0.3163, "lon": 32.5822, "code": "KLA-CEN"},
+    {"name": "Kawempe",  "country": "Uganda", "lat": 0.3780, "lon": 32.5617, "code": "KLA-KAW"},
+    {"name": "Makindye", "country": "Uganda", "lat": 0.2800, "lon": 32.5956, "code": "KLA-MAK"},
+    {"name": "Nakawa",   "country": "Uganda", "lat": 0.3317, "lon": 32.6317, "code": "KLA-NAK"},
+    {"name": "Rubaga",   "country": "Uganda", "lat": 0.3050, "lon": 32.5517, "code": "KLA-RUB"},
 ]
 
 # Subscriber registry (in production: pulled from Azure DB)
 SUBSCRIBERS = {
-    "UG-KLA": ["+256700000001", "+256700000002"],
-    "KE-NBI": ["+254700000001"],
-    "TZ-DAR": ["+255700000001"],
+    "KLA-CEN": ["+256700000001", "+256700000002"],
+    "KLA-KAW": ["+256700000003", "+256700000004"],
+    "KLA-MAK": ["+256700000005"],
+    "KLA-NAK": ["+256700000006"],
+    "KLA-RUB": ["+256700000007"],
 }
 
 
@@ -60,7 +61,7 @@ class WeatherReading:
     wind_speed_kmh: float
     humidity_pct: float
     description: str
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 @dataclass
@@ -70,7 +71,7 @@ class SeismicReading:
     magnitude: float
     depth_km: float
     distance_km: float
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 @dataclass
@@ -82,7 +83,7 @@ class RiskAssessment:
     primary_threat: str
     confidence_pct: int
     recommended_action: str
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 @dataclass
@@ -93,7 +94,7 @@ class AlertEvent:
     sms_sent_to: list[str]
     message_body: str
     status: str                # SENT / FAILED / SIMULATED
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 # ─────────────────────────────────────────────
@@ -101,7 +102,7 @@ class AlertEvent:
 # ─────────────────────────────────────────────
 class WeatherAgent:
     """
-    Monitors real-time weather conditions across East African zones.
+    Monitors real-time weather conditions across Kampala divisions.
     Data source: OpenWeatherMap Current Weather API
     """
     BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
@@ -131,13 +132,13 @@ class WeatherAgent:
                 return self._simulate(zone, str(e))
 
     def _simulate(self, zone: dict, reason: str = "") -> WeatherReading:
-        """Simulated reading for demo — Kampala heavy rain scenario."""
+        """Simulated reading for demo — Kampala divisions flood scenario."""
         simulated = {
-            "UG-KLA": WeatherReading(zone["code"], zone["name"], 52.4, 45.2, 94, "heavy intensity rain"),
-            "KE-NBI": WeatherReading(zone["code"], zone["name"], 8.1, 22.0, 71, "moderate rain"),
-            "TZ-DAR": WeatherReading(zone["code"], zone["name"], 3.2, 15.0, 65, "light rain"),
-            "RW-KGL": WeatherReading(zone["code"], zone["name"], 1.0, 10.0, 55, "clear sky"),
-            "ET-ADD": WeatherReading(zone["code"], zone["name"], 0.0, 8.0, 30, "clear sky"),
+            "KLA-CEN": WeatherReading(zone["code"], zone["name"], 48.2, 38.5, 92, "heavy intensity rain"),
+            "KLA-KAW": WeatherReading(zone["code"], zone["name"], 61.7, 42.0, 97, "extreme rain"),
+            "KLA-MAK": WeatherReading(zone["code"], zone["name"], 29.4, 25.0, 85, "moderate rain"),
+            "KLA-NAK": WeatherReading(zone["code"], zone["name"], 18.6, 20.0, 78, "moderate rain"),
+            "KLA-RUB": WeatherReading(zone["code"], zone["name"], 35.1, 30.0, 88, "heavy rain"),
         }
         return simulated.get(zone["code"], WeatherReading(zone["code"], zone["name"], 0, 0, 0, "unknown"))
 
@@ -151,7 +152,7 @@ class WeatherAgent:
 # ─────────────────────────────────────────────
 class SeismicAgent:
     """
-    Monitors seismic activity near East African zones.
+    Monitors seismic activity near Kampala divisions.
     Data source: USGS Earthquake Hazards Program API (free, real-time)
     """
     USGS_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query"
@@ -203,11 +204,11 @@ class FloodRiskAgent:
     # Terrain vulnerability scores (0–1) derived from historical flood data
     # Source: UNOSAT Flood Portal + Uganda OPM Disaster Reports
     TERRAIN_VULNERABILITY = {
-        "UG-KLA": 0.85,   # Kampala — low-lying Nakivubo wetlands
-        "KE-NBI": 0.60,   # Nairobi — Mathare, Kibera valleys
-        "TZ-DAR": 0.70,   # Dar — coastal + Msimbazi River
-        "RW-KGL": 0.45,   # Kigali — hillside drainage
-        "ET-ADD": 0.40,   # Addis — Akaki River basin
+        "KLA-CEN": 0.80,   # Central   — Nakivubo wetlands, Kinawataka channel
+        "KLA-KAW": 0.92,   # Kawempe   — Lubigi wetlands, very low-lying
+        "KLA-MAK": 0.75,   # Makindye  — Ggaba road valleys, Nakisunga channel
+        "KLA-NAK": 0.65,   # Nakawa    — Murchison Bay shores, Kyambogo slopes
+        "KLA-RUB": 0.82,   # Rubaga    — Nalukolongo channel, Kasubi slopes
     }
 
     FLOOD_THRESHOLDS = {
@@ -258,7 +259,7 @@ class OrchestratorAgent:
         (0.0, 2.5): ("LOW", "Monitor situation. No immediate action required."),
         (2.5, 5.0): ("MEDIUM", "Prepare emergency kits. Stay informed via AlertEA."),
         (5.0, 7.5): ("HIGH", "Evacuate low-lying areas. Avoid river banks and drainage channels."),
-        (7.5, 10.0): ("CRITICAL", "IMMEDIATE EVACUATION. Move to high ground NOW. Contact emergency services."),
+        (7.5, float("inf")): ("CRITICAL", "IMMEDIATE EVACUATION. Move to high ground NOW. Contact emergency services."),
     }
 
     def assess_zone(
@@ -404,7 +405,7 @@ async def run_alertea_cycle(simulate: bool = True) -> list[AlertEvent]:
     dispatch_agent = AlertDispatchAgent()
 
     # Parallel data collection
-    print("📡 Collecting sensor data across East Africa...")
+    print("📡 Collecting sensor data across Kampala divisions...")
     weather_readings, seismic_readings = await asyncio.gather(
         weather_agent.scan_all_zones(),
         seismic_agent.scan_all_zones()
@@ -414,7 +415,7 @@ async def run_alertea_cycle(simulate: bool = True) -> list[AlertEvent]:
 
     alert_events = []
     for weather in weather_readings:
-        seismic = seismic_map.get(weather.zone_code)
+        seismic = seismic_map.get(weather.zone_code) or SeismicReading(weather.zone_code, weather.zone_name, 0.0, 0.0, 0.0)
         flood_score = flood_agent.assess(weather)
         risk = orchestrator.assess_zone(weather, seismic, flood_score)
 

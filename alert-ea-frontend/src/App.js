@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 
 // ─── Simulated live data (replace with API calls in production) ───
 const ZONES = [
@@ -61,7 +61,7 @@ const LOG_COLORS = {
 };
 
 // ─── Map Component ───
-function EastAfricaMap({ zones, selectedZone, onSelectZone }) {
+function KampalaMap({ zones, selectedZone, onSelectZone }) {
   // Kampala divisions map — bounded to city extent
   const mapBounds = { minLon: 32.50, maxLon: 32.68, minLat: 0.24, maxLat: 0.42 };
   const W = 420, H = 340;
@@ -149,7 +149,7 @@ function EastAfricaMap({ zones, selectedZone, onSelectZone }) {
 }
 
 // ─── Main Dashboard ───
-export default function App() {
+export default function AlertEADashboard() {
   const [selectedZone, setSelectedZone] = useState(ZONES[0]);
   const [cycleRunning, setCycleRunning] = useState(false);
   const [lastCycle, setLastCycle] = useState("14:32:07 UTC");
@@ -272,7 +272,7 @@ export default function App() {
           borderRight: "1px solid #1e3a5f", overflowY: "auto", flexShrink: 0,
         }}>
           <div style={{ padding: "12px 16px 8px", fontSize: 9, color: "#546e7a", letterSpacing: 2 }}>
-            MONITORED ZONES
+            KAMPALA DIVISIONS
           </div>
           {ZONES.map(z => {
             const c = RISK_COLORS[z.risk_level];
@@ -350,7 +350,7 @@ export default function App() {
                   LIVE THREAT MAP — KAMPALA DIVISIONS
                 </div>
                 <div style={{ display: "flex", justifyContent: "center", flex: 1, alignItems: "center" }}>
-                  <EastAfricaMap zones={ZONES} selectedZone={selectedZone} onSelectZone={setSelectedZone} />
+                  <KampalaMap zones={ZONES} selectedZone={selectedZone} onSelectZone={setSelectedZone} />
                 </div>
                 {/* Legend */}
                 <div style={{ display: "flex", gap: 16, marginTop: 12, justifyContent: "center" }}>

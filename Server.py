@@ -7,9 +7,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
-from agents.alert_agents import (
+from Alert import (
     run_alertea_cycle, WeatherAgent, SeismicAgent,
-    FloodRiskAgent, OrchestratorAgent, MONITORED_ZONES
+    FloodRiskAgent, OrchestratorAgent, SeismicReading, MONITORED_ZONES
 )
 
 app = FastAPI(title="AlertEA API", version="1.0.0")
@@ -46,7 +46,7 @@ async def get_risk_map():
 
     results = []
     for weather in weather_readings:
-        seismic = seismic_map.get(weather.zone_code)
+        seismic = seismic_map.get(weather.zone_code) or SeismicReading(weather.zone_code, weather.zone_name, 0.0, 0.0, 0.0)
         flood_score = flood_agent.assess(weather)
         risk = orchestrator.assess_zone(weather, seismic, flood_score)
         zone_info = next(z for z in MONITORED_ZONES if z["code"] == weather.zone_code)
@@ -62,7 +62,7 @@ async def get_risk_map():
             "rainfall_mm": weather.rainfall_mm,
             "wind_speed_kmh": weather.wind_speed_kmh,
             "humidity_pct": weather.humidity_pct,
-            "seismic_magnitude": seismic.magnitude if seismic else 0,
+            "seismic_magnitude": seismic.magnitude,
             "recommended_action": risk.recommended_action,
             "confidence_pct": risk.confidence_pct,
             "timestamp": risk.timestamp,
