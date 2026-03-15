@@ -319,9 +319,9 @@ class AlertDispatchAgent:
     ALERT_THRESHOLD = 5.0   # Risk score above this triggers SMS
 
     def build_message(self, risk: RiskAssessment) -> str:
-        emoji = {"LOW": "🟢", "MEDIUM": "🟡", "HIGH": "🟠", "CRITICAL": "🔴"}.get(risk.risk_level, "⚠️")
+        emoji = {"LOW": "[LOW]", "MEDIUM": "[MEDIUM]", "HIGH": "[HIGH]", "CRITICAL": "[CRITICAL]"}.get(risk.risk_level, "[ALERT]")
         return (
-            f"{emoji} ALERTEA WARNING — {risk.zone_name}\n"
+            f"{emoji} ALERTEA WARNING - {risk.zone_name}\n"
             f"Threat: {risk.primary_threat} | Level: {risk.risk_level}\n"
             f"Risk Score: {risk.risk_score}/10\n"
             f"Action: {risk.recommended_action}\n"
@@ -343,7 +343,7 @@ class AlertDispatchAgent:
         message = self.build_message(risk)
 
         if simulate or not AZURE_COMMS_CONNECTION_STRING:
-            print(f"[SIMULATED SMS] → {subscribers}\n{message}\n")
+            print(f"[SIMULATED SMS] -> {subscribers}\n{message}\n")
             return AlertEvent(
                 zone_code=risk.zone_code,
                 zone_name=risk.zone_name,
@@ -395,7 +395,7 @@ async def run_alertea_cycle(simulate: bool = True) -> list[AlertEvent]:
     5. Dispatch alerts for HIGH/CRITICAL zones
     """
     print(f"\n{'='*60}")
-    print(f"  AlertEA Monitoring Cycle — {datetime.utcnow().isoformat()}")
+    print(f"  AlertEA Monitoring Cycle - {datetime.now(timezone.utc).isoformat()}")
     print(f"{'='*60}\n")
 
     weather_agent = WeatherAgent()
@@ -405,7 +405,7 @@ async def run_alertea_cycle(simulate: bool = True) -> list[AlertEvent]:
     dispatch_agent = AlertDispatchAgent()
 
     # Parallel data collection
-    print("📡 Collecting sensor data across Kampala divisions...")
+    print("[*] Collecting sensor data across Kampala divisions...")
     weather_readings, seismic_readings = await asyncio.gather(
         weather_agent.scan_all_zones(),
         seismic_agent.scan_all_zones()
@@ -431,7 +431,7 @@ async def run_alertea_cycle(simulate: bool = True) -> list[AlertEvent]:
         if event.status not in ("SKIPPED — below threshold",):
             alert_events.append(event)
 
-    print(f"\n✅ Cycle complete. {len(alert_events)} alert(s) dispatched.\n")
+    print(f"\n[OK] Cycle complete. {len(alert_events)} alert(s) dispatched.\n")
     return alert_events
 
 

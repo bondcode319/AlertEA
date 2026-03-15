@@ -27,7 +27,7 @@ latest_results = {"assessments": [], "alerts": [], "last_run": None}
 
 @app.get("/")
 def root():
-    return {"service": "AlertEA", "status": "operational", "region": "East Africa"}
+    return {"service": "AlertEA", "status": "operational", "region": "Kampala, Uganda"}
 
 
 @app.get("/api/risk-map")
@@ -49,7 +49,9 @@ async def get_risk_map():
         seismic = seismic_map.get(weather.zone_code) or SeismicReading(weather.zone_code, weather.zone_name, 0.0, 0.0, 0.0)
         flood_score = flood_agent.assess(weather)
         risk = orchestrator.assess_zone(weather, seismic, flood_score)
-        zone_info = next(z for z in MONITORED_ZONES if z["code"] == weather.zone_code)
+        zone_info = next((z for z in MONITORED_ZONES if z["code"] == weather.zone_code), None)
+        if zone_info is None:
+            continue
         results.append({
             "zone_code": risk.zone_code,
             "zone_name": risk.zone_name,
